@@ -25,7 +25,7 @@ Perfect for high-gold runs where the counter normally stops updating.
 
 ## 📥 Installation
 1. Install **[MelonLoader](https://melonwiki.xyz/#/?id=installing)** for Vampire Survivors.
-2. Download the latest `CoinsCapRemover.dll` from the [Releases](../../releases) page.
+2. Download the latest `CoinsCapRemover.zip` from the [Releases](../../releases) page.
 3. Place the `.dll` file into your Vampire Survivors **`Mods`** folder (created by MelonLoader).
 4. Launch the game — MelonLoader will load the mod automatically.
 

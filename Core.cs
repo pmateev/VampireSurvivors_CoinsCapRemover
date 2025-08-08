@@ -196,7 +196,7 @@ namespace CoinsCapRemover
 
             var rect = parent.GetComponent<RectTransform>();
             Vector2 pos = rect.anchoredPosition;
-            pos.x += 17f; 
+            pos.x += 30f; 
             rect.anchoredPosition = pos;
 
             var cashImage = parent.Find("CashImage");
@@ -204,7 +204,7 @@ namespace CoinsCapRemover
             if (imageRect != null)
             {
                 Vector2 imagePos = imageRect.anchoredPosition;
-                imagePos.x -= 20f;
+                imagePos.x -= 30f;
                 imageRect.anchoredPosition = imagePos;
             }
 

@@ -4,6 +4,7 @@ using MelonLoader;
 using System.Collections;
 using System.Reflection;
 using UnityEngine;
+using UnityEngine.PlayerLoop;
 
 [assembly: MelonInfo(typeof(CoinsCapRemover.CoinsCapRemover), "Coins Cap Remover", "0.0.1", "ZaPasta and Black0wl")]
 [assembly: MelonGame("poncle", "Vampire Survivors")]
@@ -14,11 +15,11 @@ namespace CoinsCapRemover
     public class CoinsCapRemover : MelonMod
     {
         private static CoinsUI coinsUI;
-        private static Il2CppTMPro.TextMeshProUGUI wwwComponent = null;
+        private Il2CppTMPro.TextMeshProUGUI wwwComponent = null;
         private object playerOptionsDataInstance = null;
         private Type playerOptionsDataType = null;
         private MethodInfo getCoinsMethod = null;
-        
+
         private bool showCoins = false;
         private bool formatCurrency = false;
         private bool isFullyInitialized = false;
@@ -30,16 +31,53 @@ namespace CoinsCapRemover
         private const float INITIALIZATION_RETRY_INTERVAL = 0.1f;
         private float baseCoinsImagePos = -1f;
 
+        public static CoinsCapRemover Instance;
+
         private GUIStyle style = null;
 
         public override void OnInitializeMelon()
         {
+            Instance = this;
+
             MelonLogger.Msg("Coins Cap Remover initialized!");
             MelonLogger.Msg("F1 = Toggle display GUI (debugging)");
             MelonLogger.Msg("F2 = Toggle currency formatting");
 
             // Start immediate initialization attempt
             MelonCoroutines.Start(InitializationCoroutine());
+
+            PatchGetCurrency();
+        }
+
+        private void PatchGetCurrency()
+        {
+            var harmony = new HarmonyLib.Harmony("com.company.coinscapremover");
+
+            var methods = typeof(MerchantUIPage).GetMethods(
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
+
+            var target = methods.FirstOrDefault(m => m.Name.Contains("Populate") && m.GetParameters().Length == 0);
+
+            if (target == null)
+            {
+                return;
+            }
+
+            var postfix = typeof(CoinsCapRemover).GetMethod(nameof(GetCurrencyPostfix),
+                BindingFlags.NonPublic | BindingFlags.Static);
+
+            harmony.Patch(target, postfix: new HarmonyMethod(postfix));
+        }
+
+        private static void GetCurrencyPostfix()
+        {
+            MelonCoroutines.Start(Instance.DelayedMethod());
+        }
+
+        private IEnumerator DelayedMethod()
+        {
+            yield return new WaitForSeconds(0.1f);
+            Instance.UpdateWWWComponentText();
         }
 
         private IEnumerator InitializationCoroutine()
@@ -58,7 +96,7 @@ namespace CoinsCapRemover
                 {
                     MelonLogger.Error($"Stack trace: {ex.StackTrace}");
                 }
-                
+
                 yield return new WaitForSeconds(INITIALIZATION_RETRY_INTERVAL);
             }
         }
@@ -128,7 +166,7 @@ namespace CoinsCapRemover
 
             if (TMPText != null)
             {
-                wwwComponent = TMPText;
+                Instance.wwwComponent = TMPText;
                 return;
             }
         }
@@ -137,7 +175,8 @@ namespace CoinsCapRemover
         {
             if (wwwComponent != null)
             {
-                if(currentCoins != 0)
+                MelonLogger.Msg($"Updating WWW component text with current coins: {currentCoins}");
+                if (currentCoins != 0)
                 {
                     wwwComponent.text = formatCurrency ? FormatAsKMB(currentCoins) : $"{currentCoins:N0}";
                     UpdateParentSize();
@@ -158,7 +197,7 @@ namespace CoinsCapRemover
             float widthPerDigit = 10f;
             float baseWidth = 230f; // padding or minimum width
 
-            if(!initialParentWidthSet)
+            if (!initialParentWidthSet)
             {
                 var rect = parent.GetComponent<RectTransform>();
                 Vector2 pos = rect.anchoredPosition;
@@ -177,7 +216,7 @@ namespace CoinsCapRemover
             RectTransform imageRect = cashImage.GetComponent<RectTransform>();
             if (imageRect != null)
             {
-                if(baseCoinsImagePos == -1f)
+                if (baseCoinsImagePos == -1f)
                 {
                     baseCoinsImagePos = imageRect.anchoredPosition.x;
                 }
@@ -187,9 +226,6 @@ namespace CoinsCapRemover
                 imageRect.anchoredPosition = imagePos;
             }
         }
-
-        // TODO Implement feature to show the full coins number in the UI with delimeters
-        // TODO Fix the format of coins under 10M
 
         static string FormatAsKMB(float value)
         {
@@ -219,7 +255,7 @@ namespace CoinsCapRemover
 
                 style.normal.textColor = Color.white; // default text color
             }
-           
+
             try
             {
                 if (isFullyInitialized && playerOptionsDataInstance != null && getCoinsMethod != null)
@@ -229,7 +265,7 @@ namespace CoinsCapRemover
 
                     UpdateWWWComponentText();
 
-                    GUI.Label(new Rect(200, 5, 500, 30), $"Real Currency Value: {currentCoins:N0}", style);
+                    GUI.Label(new Rect(200, 4, 500, 30), $"Real Currency Value: {currentCoins:N0}", style);
 
                 }
             }
@@ -240,10 +276,11 @@ namespace CoinsCapRemover
 
             }
         }
+
         public override void OnSceneWasLoaded(int buildIndex, string sceneName)
         {
             MelonLogger.Msg($"Scene loaded: {sceneName}");
-            if(sceneName == "MainMenu")
+            if (sceneName == "MainMenu")
             {
                 watchingForUI = true;
                 initialParentWidthSet = false;
@@ -252,7 +289,7 @@ namespace CoinsCapRemover
         }
 
         private bool InitializePlayerOptionsDataMethods()
-        { 
+        {
             try
             {
                 // Find PlayerOptionsData type in all assemblies
@@ -286,11 +323,11 @@ namespace CoinsCapRemover
                 if (getCoinsMethod == null)
                 {
                     var methods = playerOptionsDataType.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                    
+
                     // Look for get_Coins method (property getter)
-                    getCoinsMethod = methods.FirstOrDefault(m => 
+                    getCoinsMethod = methods.FirstOrDefault(m =>
                         m.Name == "get_Coins" && m.GetParameters().Length == 0);
-                    
+
                     // Also try looking at properties directly
                     if (getCoinsMethod == null)
                     {
@@ -333,7 +370,7 @@ namespace CoinsCapRemover
         {
             if (playerOptionsDataType == null)
                 return null;
-                
+
             try
             {
                 if (coinsUI != null)
@@ -341,11 +378,11 @@ namespace CoinsCapRemover
                     if (coinsUI._playerOptions != null)
                     {
                         var playerOptions = coinsUI._playerOptions;
-                        
+
                         // Search all fields in PlayerOptions for PlayerOptionsData
                         var playerOptionsType = playerOptions.GetType();
                         var fields = playerOptionsType.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                        
+
                         foreach (var field in fields)
                         {
                             if (field.FieldType == playerOptionsDataType)
@@ -379,11 +416,11 @@ namespace CoinsCapRemover
                                 }
                             }
                         }
-                        
+
                         // Also check properties in PlayerOptions
                         var properties = playerOptionsType.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
                         foreach (var prop in properties)
-                        {     
+                        {
                             if (prop.PropertyType == playerOptionsDataType && prop.CanRead)
                             {
                                 try
@@ -430,12 +467,13 @@ namespace CoinsCapRemover
 
         // Patch CoinsUI.Start to get the CoinsUI instance
         [HarmonyPatch(typeof(CoinsUI), nameof(CoinsUI.Start))]
-        static class PatchCoinsUI 
-        { 
-            static void Postfix(CoinsUI __instance) 
+        static class PatchCoinsUI
+        {
+            static void Postfix(CoinsUI __instance)
             {
                 coinsUI = __instance;
-            } 
+            }
         }
     }
+
 }

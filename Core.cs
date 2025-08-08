@@ -4,7 +4,6 @@ using MelonLoader;
 using System.Collections;
 using System.Reflection;
 using UnityEngine;
-using UnityEngine.PlayerLoop;
 
 [assembly: MelonInfo(typeof(CoinsCapRemover.CoinsCapRemover), "Coins Cap Remover", "0.0.1", "ZaPasta and Black0wl")]
 [assembly: MelonGame("poncle", "Vampire Survivors")]
@@ -23,13 +22,13 @@ namespace CoinsCapRemover
         private bool showCoins = false;
         private bool formatCurrency = false;
         private bool isFullyInitialized = false;
-        private bool initialParentWidthSet = false;
+        private bool isCoinsPanelSizeSet = false;
         private bool watchingForUI = false;
 
         private float currentCoins = 0f;
         private float lastCoinAmount = -1f;
         private const float INITIALIZATION_RETRY_INTERVAL = 0.1f;
-        private float baseCoinsImagePos = -1f;
+
 
         public static CoinsCapRemover Instance;
 
@@ -77,6 +76,7 @@ namespace CoinsCapRemover
         private IEnumerator DelayedMethod()
         {
             yield return new WaitForSeconds(0.1f);
+            Instance.isCoinsPanelSizeSet = false;
             Instance.UpdateWWWComponentText();
         }
 
@@ -175,56 +175,44 @@ namespace CoinsCapRemover
         {
             if (wwwComponent != null)
             {
-                MelonLogger.Msg($"Updating WWW component text with current coins: {currentCoins}");
                 if (currentCoins != 0)
                 {
                     wwwComponent.text = formatCurrency ? FormatAsKMB(currentCoins) : $"{currentCoins:N0}";
-                    UpdateParentSize();
+
+                    if (!isCoinsPanelSizeSet)
+                    {
+                        isCoinsPanelSizeSet = true;
+                        SetCoinsPanelSize();
+                    }
                 }
             }
         }
 
-        void UpdateParentSize()
+        private void SetCoinsPanelSize()
         {
-            // Count digits in the text
-            int digitCount = wwwComponent.text.Length;
-
-            // Get the parent RectTransform
             var parent = wwwComponent.transform.parent.GetComponent<RectTransform>();
             if (parent == null) return;
+            parent.sizeDelta = new Vector2(400f, parent.sizeDelta.y);
 
-            // Base width per digit (tweak for your font size)
-            float widthPerDigit = 10f;
-            float baseWidth = 230f; // padding or minimum width
-
-            if (!initialParentWidthSet)
-            {
-                var rect = parent.GetComponent<RectTransform>();
-                Vector2 pos = rect.anchoredPosition;
-                pos.x += 35f; // move right by 100 units
-                rect.anchoredPosition = pos;
-
-                initialParentWidthSet = true;
-            }
-
-            // Set new width based on digits
-            Vector2 size = parent.sizeDelta;
-            size.x = baseWidth + (digitCount * widthPerDigit);
-            parent.sizeDelta = size;
+            var rect = parent.GetComponent<RectTransform>();
+            Vector2 pos = rect.anchoredPosition;
+            pos.x += 17f; 
+            rect.anchoredPosition = pos;
 
             var cashImage = parent.Find("CashImage");
             RectTransform imageRect = cashImage.GetComponent<RectTransform>();
             if (imageRect != null)
             {
-                if (baseCoinsImagePos == -1f)
-                {
-                    baseCoinsImagePos = imageRect.anchoredPosition.x;
-                }
-
                 Vector2 imagePos = imageRect.anchoredPosition;
-                imagePos.x = (baseCoinsImagePos + 60) - (digitCount * widthPerDigit); // move right by 100 units
+                imagePos.x -= 20f;
                 imageRect.anchoredPosition = imagePos;
             }
+
+            var coinsRect = wwwComponent.GetComponent<RectTransform>();
+
+            Vector2 offsetMin = coinsRect.offsetMin;
+            offsetMin.x -= 20;
+            coinsRect.offsetMin = offsetMin;
         }
 
         static string FormatAsKMB(float value)
@@ -273,17 +261,16 @@ namespace CoinsCapRemover
             {
                 GUI.color = Color.red;
                 GUI.Label(new Rect(300, 10, 300, 30), $"Error: {ex.Message}");
-
             }
         }
 
         public override void OnSceneWasLoaded(int buildIndex, string sceneName)
         {
-            MelonLogger.Msg($"Scene loaded: {sceneName}");
+            // MelonLogger.Msg($"Scene loaded: {sceneName}");
             if (sceneName == "MainMenu")
             {
                 watchingForUI = true;
-                initialParentWidthSet = false;
+                isCoinsPanelSizeSet = false;
                 MelonCoroutines.Start(InitializationCoroutine());
             }
         }
@@ -346,7 +333,6 @@ namespace CoinsCapRemover
                             if (method.Name.ToLower().Contains("coin"))
                             {
                                 var paramTypes = string.Join(", ", method.GetParameters().Select(p => p.ParameterType.Name));
-                                MelonLogger.Msg($"  {method.Name}({paramTypes}) - Returns: {method.ReturnType.Name}");
                             }
                         }
                         return false;

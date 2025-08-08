@@ -1,12 +1,9 @@
-﻿using MelonLoader;
-using UnityEngine;
+﻿using HarmonyLib;
 using Il2CppVampireSurvivors.UI;
-using System;
-using System.Reflection;
-using System.Linq;
-using HarmonyLib;
+using MelonLoader;
 using System.Collections;
-using Il2CppSystem.Runtime.Remoting.Messaging;
+using System.Reflection;
+using UnityEngine;
 
 [assembly: MelonInfo(typeof(CoinsCapRemover.CoinsCapRemover), "Coins Cap Remover", "0.0.1", "ZaPasta and Black0wl")]
 [assembly: MelonGame("poncle", "Vampire Survivors")]
@@ -16,20 +13,24 @@ namespace CoinsCapRemover
     public class CoinsCapRemover : MelonMod
     {
         private static CoinsUI coinsUI;
-        
-        // PlayerOptionsData access variables
+        private static Il2CppTMPro.TextMeshProUGUI wwwComponent = null;
+        private object playerOptionsDataInstance = null;
         private Type playerOptionsDataType = null;
         private MethodInfo getCoinsMethod = null;
-        private object playerOptionsDataInstance = null;
-        private bool isFullyInitialized = false;
-        private float currentCoins = 0f;
-        private static Il2CppTMPro.TextMeshProUGUI wwwComponent = null;
         
-        // Display variables
-        private float lastCoinAmount = -1f;
         private bool showCoins = false;
+        private bool formatCurrency = false;
+        private bool isFullyInitialized = false;
+        private bool initialParentWidthSet = false;
+        private bool watchingForUI = false;
+
+        private float currentCoins = 0f;
+        private float lastCoinAmount = -1f;
         private const float INITIALIZATION_RETRY_INTERVAL = 0.1f;
-        
+        private float baseCoinsImagePos = -1f;
+
+        private GUIStyle style = null;
+
         public override void OnInitializeMelon()
         {
             MelonLogger.Msg("Coins Cap Remover initialized!");
@@ -77,6 +78,15 @@ namespace CoinsCapRemover
                 MelonLogger.Msg($"Coin display: {(showCoins ? "ON" : "OFF")}");
             }
 
+            // Toggle format currency with F2
+            if (Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.F2)
+            {
+                formatCurrency = !formatCurrency;
+                MelonLogger.Msg($"Format Currency: {(formatCurrency ? "ON" : "OFF")}");
+
+                UpdateWWWComponentText();
+            }
+
             try
             {
                 // Display current coins if we have everything set up
@@ -88,10 +98,7 @@ namespace CoinsCapRemover
                     if (Math.Abs(currentCoins - lastCoinAmount) > 0.01f)
                     {
                         lastCoinAmount = currentCoins;
-                        if (wwwComponent != null)
-                        {
-                            wwwComponent.text = FormatAsKMB(currentCoins);
-                        }
+                        UpdateWWWComponentText();
                     }
                 }
             }
@@ -104,9 +111,16 @@ namespace CoinsCapRemover
                 playerOptionsDataInstance = null;
                 MelonCoroutines.Start(InitializationCoroutine());
             }
+
+            if (wwwComponent != null && wwwComponent.gameObject.activeInHierarchy && watchingForUI)
+            {
+                UpdateWWWComponentText();
+
+                watchingForUI = false; // Stop checking after found
+            }
         }
 
-        private void FindWWWComponent()
+        private static void FindWWWComponent()
         {
             var TMPText = Resources.FindObjectsOfTypeAll<Il2CppTMPro.TextMeshProUGUI>().FirstOrDefault(t => t != null && t.gameObject != null && t.gameObject.name == "www");
 
@@ -114,6 +128,61 @@ namespace CoinsCapRemover
             {
                 wwwComponent = TMPText;
                 return;
+            }
+        }
+
+        private void UpdateWWWComponentText()
+        {
+            if (wwwComponent != null)
+            {
+                if(currentCoins != 0)
+                {
+                    wwwComponent.text = formatCurrency ? FormatAsKMB(currentCoins) : $"{currentCoins:N0}";
+                    UpdateParentSize();
+                }
+            }
+        }
+
+        void UpdateParentSize()
+        {
+            // Count digits in the text
+            int digitCount = wwwComponent.text.Length;
+
+            // Get the parent RectTransform
+            var parent = wwwComponent.transform.parent.GetComponent<RectTransform>();
+            if (parent == null) return;
+
+            // Base width per digit (tweak for your font size)
+            float widthPerDigit = 10f;
+            float baseWidth = 230f; // padding or minimum width
+
+            if(!initialParentWidthSet)
+            {
+                var rect = parent.GetComponent<RectTransform>();
+                Vector2 pos = rect.anchoredPosition;
+                pos.x += 35f; // move right by 100 units
+                rect.anchoredPosition = pos;
+
+                initialParentWidthSet = true;
+            }
+
+            // Set new width based on digits
+            Vector2 size = parent.sizeDelta;
+            size.x = baseWidth + (digitCount * widthPerDigit);
+            parent.sizeDelta = size;
+
+            var cashImage = parent.Find("CashImage");
+            RectTransform imageRect = cashImage.GetComponent<RectTransform>();
+            if (imageRect != null)
+            {
+                if(baseCoinsImagePos == -1f)
+                {
+                    baseCoinsImagePos = imageRect.anchoredPosition.x;
+                }
+
+                Vector2 imagePos = imageRect.anchoredPosition;
+                imagePos.x = (baseCoinsImagePos + 60) - (digitCount * widthPerDigit); // move right by 100 units
+                imageRect.anchoredPosition = imagePos;
             }
         }
 
@@ -129,7 +198,7 @@ namespace CoinsCapRemover
             if (value >= 10_000_000)
                 return (value / 1_000_000f).ToString("0.##") + "M";
 
-            return value.ToString();
+            return value.ToString("N0");
         }
 
         public override void OnGUI()
@@ -137,6 +206,18 @@ namespace CoinsCapRemover
             if (!showCoins)
                 return;
 
+            if (style == null)
+            {
+                style = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = 20, // bigger text
+                    alignment = TextAnchor.MiddleCenter, // center alignment
+                    fontStyle = FontStyle.Bold // optional bold style
+                };
+
+                style.normal.textColor = Color.white; // default text color
+            }
+           
             try
             {
                 if (isFullyInitialized && playerOptionsDataInstance != null && getCoinsMethod != null)
@@ -144,22 +225,26 @@ namespace CoinsCapRemover
                     float currentCoins = (float)getCoinsMethod.Invoke(playerOptionsDataInstance, null);
                     GUI.color = Color.yellow;
 
-                    if(wwwComponent != null)
-                    {
-                        wwwComponent.text = FormatAsKMB((float)currentCoins);
-                    }
-                    
-                    // TODO Add delimeters to debug coins
+                    UpdateWWWComponentText();
 
-                    GUI.Label(new Rect(10, 10, 300, 30), $"Real Currency Value: {currentCoins:F3}");
-                    GUI.color = Color.white;
+                    GUI.Label(new Rect(200, 5, 500, 30), $"Real Currency Value: {currentCoins:N0}", style);
+
                 }
             }
             catch (Exception ex)
             {
                 GUI.color = Color.red;
-                GUI.Label(new Rect(10, 10, 300, 30), $"Error: {ex.Message}");
-                GUI.color = Color.white;
+                GUI.Label(new Rect(300, 10, 300, 30), $"Error: {ex.Message}");
+
+            }
+        }
+        public override void OnSceneWasLoaded(int buildIndex, string sceneName)
+        {
+            MelonLogger.Msg($"Scene loaded: {sceneName}");
+            if(sceneName == "MainMenu")
+            {
+                watchingForUI = true;
+                MelonCoroutines.Start(InitializationCoroutine());
             }
         }
 

@@ -2,6 +2,7 @@
 
 [![MelonLoader](https://img.shields.io/badge/MelonLoader-0.6.1+-brightgreen)](https://melonwiki.xyz/#/?id=installing)
 [![GitHub release](https://img.shields.io/github/v/release/pmateev/VampireSurvivors_CoinsCapRemover)](../../releases)
+[![GitHub release](https://img.shields.io/github/downloads/pmateev/VampireSurvivors_CoinsCapRemover/total?logo=GitHub&style=social)](../../releases)
 [![License](https://img.shields.io/github/license/pmateev/VampireSurvivors_CoinsCapRemover)](./LICENSE)
 
 **Coins Cap Remover** is a mod for **Vampire Survivors** that removes the in-game UI coin display limit and shows your actual gold count — even beyond the visible cap in the default UI.  

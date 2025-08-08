@@ -12,7 +12,7 @@
 		<AssemblyName>CoinsCapRemover</AssemblyName>
 		<LangVersion>latest</LangVersion>
 		<ImplicitUsings>enable</ImplicitUsings>
-		<GameLibsDir>E:\SteamLibrary\steamapps\common\Vampire Survivors</GameLibsDir>
+		<GameLibsDir>D:\SteamLibrary\steamapps\common\Vampire Survivors</GameLibsDir>
 		<OutputPath>$(GameLibsDir)\Mods</OutputPath>
 		<Configurations>Debug;Release;Release_x64</Configurations>
 		<Platforms>AnyCPU;x64</Platforms>

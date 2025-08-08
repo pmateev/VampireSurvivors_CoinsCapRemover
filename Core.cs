@@ -9,6 +9,7 @@ using UnityEngine;
 [assembly: MelonGame("poncle", "Vampire Survivors")]
 
 namespace CoinsCapRemover
+
 {
     public class CoinsCapRemover : MelonMod
     {
@@ -35,6 +36,7 @@ namespace CoinsCapRemover
         {
             MelonLogger.Msg("Coins Cap Remover initialized!");
             MelonLogger.Msg("F1 = Toggle display GUI (debugging)");
+            MelonLogger.Msg("F2 = Toggle currency formatting");
 
             // Start immediate initialization attempt
             MelonCoroutines.Start(InitializationCoroutine());
@@ -244,6 +246,7 @@ namespace CoinsCapRemover
             if(sceneName == "MainMenu")
             {
                 watchingForUI = true;
+                initialParentWidthSet = false;
                 MelonCoroutines.Start(InitializationCoroutine());
             }
         }

@@ -17,7 +17,14 @@
 		<Configurations>Debug;Release;Release_x64</Configurations>
 		<Platforms>AnyCPU;x64</Platforms>
 	</PropertyGroup>
-	
+	<Target Name="CopyAndRun" AfterTargets="Build">
+
+    <Copy 
+        SourceFiles="$(TargetPath)" 
+        DestinationFolder="$(GameLibsDir)\Mods" 
+        OverwriteReadOnlyFiles="true" />
+    <Exec Command="explorer.exe &quot;$(GameLibsDir)\VampireSurvivors.exe&quot;" />
+	</Target>
 
 	<ItemGroup>
 		<Reference Include="MelonLoader">
@@ -486,6 +493,8 @@
 			<HintPath>$(GameLibsDir)\MelonLoader\Il2CppAssemblies\UnityEngine.XRModule.dll</HintPath>
 		</Reference>
 	</ItemGroup>
+
+	
 
 	<PropertyGroup>
 		<AllowUnsafeBlocks>True</AllowUnsafeBlocks>

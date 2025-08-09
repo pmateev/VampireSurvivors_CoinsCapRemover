@@ -9,7 +9,6 @@ using UnityEngine;
 [assembly: MelonGame("poncle", "Vampire Survivors")]
 
 namespace CoinsCapRemover
-
 {
     public class CoinsCapRemover : MelonMod
     {
@@ -28,7 +27,6 @@ namespace CoinsCapRemover
         private float currentCoins = 0f;
         private float lastCoinAmount = -1f;
         private const float INITIALIZATION_RETRY_INTERVAL = 0.1f;
-
 
         public static CoinsCapRemover Instance;
 
@@ -226,7 +224,7 @@ namespace CoinsCapRemover
 
             return value.ToString("N0");
         }
-
+        
         public override void OnGUI()
         {
             if (!showCoins)

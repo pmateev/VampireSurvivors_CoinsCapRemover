@@ -1,0 +1,11 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build and Run Mod",
+      "type": "shell",
+      "command": "dotnet build -t:CopyAndRun --configuration Debug",
+      "problemMatcher": []
+    }
+  ]
+}

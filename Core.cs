@@ -5,10 +5,11 @@ using System.Collections;
 using System.Reflection;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(CoinsCapRemover.CoinsCapRemover), "Coins Cap Remover", "0.0.1", "ZaPasta and Black0wl")]
+[assembly: MelonInfo(typeof(CoinsCapRemover.CoinsCapRemover), "Coins Cap Remover", "0.0.2", "ZaPasta and Black0wl")]
 [assembly: MelonGame("poncle", "Vampire Survivors")]
 
 namespace CoinsCapRemover
+
 {
     public class CoinsCapRemover : MelonMod
     {
@@ -19,7 +20,7 @@ namespace CoinsCapRemover
         private MethodInfo getCoinsMethod = null;
 
         private bool showCoins = false;
-        private bool formatCurrency = false;
+        private int displayMode = 0; // 0 = KMB format, 1 = regular numbers, 2 = scientific notation
         private bool isFullyInitialized = false;
         private bool isCoinsPanelSizeSet = false;
         private bool watchingForUI = false;
@@ -27,6 +28,7 @@ namespace CoinsCapRemover
         private float currentCoins = 0f;
         private float lastCoinAmount = -1f;
         private const float INITIALIZATION_RETRY_INTERVAL = 0.1f;
+
 
         public static CoinsCapRemover Instance;
 
@@ -38,7 +40,7 @@ namespace CoinsCapRemover
 
             MelonLogger.Msg("Coins Cap Remover initialized!");
             MelonLogger.Msg("F1 = Toggle display GUI (debugging)");
-            MelonLogger.Msg("F2 = Toggle currency formatting");
+            MelonLogger.Msg("F2 = Cycle display modes (KMB format -> Regular numbers -> Scientific notation)");
 
             // Start immediate initialization attempt
             MelonCoroutines.Start(InitializationCoroutine());
@@ -116,18 +118,25 @@ namespace CoinsCapRemover
                 MelonLogger.Msg($"Coin display: {(showCoins ? "ON" : "OFF")}");
             }
 
-            // Toggle format currency with F2
+            // Cycle display modes with F2
             if (Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.F2)
             {
-                formatCurrency = !formatCurrency;
-                MelonLogger.Msg($"Format Currency: {(formatCurrency ? "ON" : "OFF")}");
+                displayMode = (displayMode + 1) % 3;
+                string modeName = displayMode switch
+                {
+                    0 => "KMB Format",
+                    1 => "Regular Numbers",
+                    2 => "Scientific Notation",
+                    _ => "Unknown"
+                };
+                MelonLogger.Msg($"Display Mode: {modeName}");
 
                 UpdateWWWComponentText();
             }
 
             try
             {
-                // Display current coins if we have everything set up
+                // Display current coins if everything is set up
                 if (playerOptionsDataInstance != null && getCoinsMethod != null)
                 {
                     currentCoins = (float)getCoinsMethod.Invoke(playerOptionsDataInstance, null);
@@ -175,7 +184,13 @@ namespace CoinsCapRemover
             {
                 if (currentCoins != 0)
                 {
-                    wwwComponent.text = formatCurrency ? FormatAsKMB(currentCoins) : $"{currentCoins:N0}";
+                    wwwComponent.text = displayMode switch
+                    {
+                        0 => FormatAsKMB(currentCoins),           // KMB format
+                        1 => $"{currentCoins:N0}",                // Regular numbers
+                        2 => $"{currentCoins:E6}",                // Scientific notation
+                        _ => $"{currentCoins:N0}"                 // Default to regular numbers
+                    };
 
                     if (!isCoinsPanelSizeSet)
                     {
@@ -224,7 +239,7 @@ namespace CoinsCapRemover
 
             return value.ToString("N0");
         }
-        
+
         public override void OnGUI()
         {
             if (!showCoins)
@@ -251,8 +266,15 @@ namespace CoinsCapRemover
 
                     UpdateWWWComponentText();
 
-                    GUI.Label(new Rect(200, 4, 500, 30), $"Real Currency Value: {currentCoins:N0}", style);
+                    string displayText = displayMode switch
+                    {
+                        0 => $"Real Currency Value (KMB): {FormatAsKMB(currentCoins)}",
+                        1 => $"Real Currency Value (Numbers): {currentCoins:N0}",
+                        2 => $"Real Currency Value (Scientific): {currentCoins:E6}",
+                        _ => $"Real Currency Value: {currentCoins:N0}"
+                    };
 
+                    GUI.Label(new Rect(200, 4, 600, 30), displayText, style);
                 }
             }
             catch (Exception ex)
